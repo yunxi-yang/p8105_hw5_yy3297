@@ -1,0 +1,13 @@
+---
+title: "p8105_hw5_yy3297"
+author: "Yunxi Yang"
+date: "2022-11-15"
+output: github_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```

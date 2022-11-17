@@ -3,6 +3,9 @@ title: "p8105_hw5_yy3297"
 author: "Yunxi Yang"
 date: "2022-11-15"
 output: github_document
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 ```{r setup, include=FALSE}
@@ -32,7 +35,10 @@ theme_set(theme_minimal() + theme(legend.position = "bottom"))
 
 #### Problem 1
 
-The code chunk below imports the data in individual spreadsheets contained in `./data/zip_data/`. To do this, I create a dataframe that includes the list of all files in that directory and the complete path to each file. As a next step, I `map` over paths and import data using the `read_csv` function. Finally, I `unnest` the result of `map`.
+The code chunk below imports the data in individual spreadsheets contained in `./data/zip_data/`.
+To do this, I create a dataframe that includes the list of all files in that directory and the complete path to each file.
+As a next step, I `map` over paths and import data using the `read_csv` function.
+Finally, I `unnest` the result of `map`.
 
 ```{r}
 full_df = 
@@ -45,7 +51,8 @@ full_df =
 full_df
 ```
 
-The result of the previous code chunk isn't tidy -- data are wide rather than long, and some important variables are included as parts of others. The code chunk below tides the data using string manipulations on the file, converting from wide to long, and selecting relevant variables. 
+The result of the previous code chunk isn't tidy -- data are wide rather than long, and some important variables are included as parts of others.
+The code chunk below tides the data using string manipulations on the file, converting from wide to long, and selecting relevant variables.
 
 ```{r}
 tidy_df = 
@@ -63,7 +70,7 @@ tidy_df =
 tidy_df
 ```
 
-Finally, the code chunk below creates a plot showing individual data, faceted by group. 
+Finally, the code chunk below creates a plot showing individual data, faceted by group.
 
 ```{r}
 tidy_df %>% 
@@ -73,23 +80,24 @@ tidy_df %>%
   facet_grid(~group)
 ```
 
-This plot suggests high within-subject correlation -- subjects who start above average end up above average, and those that start below average end up below average. Subjects in the control group generally don't change over time, but those in the experiment group increase their outcome in a roughly linear way. 
-
+This plot suggests high within-subject correlation -- subjects who start above average end up above average, and those that start below average end up below average.
+Subjects in the control group generally don't change over time, but those in the experiment group increase their outcome in a roughly linear way.
 
 #### Problem 2
 
-
-* Import data set of homicide-data.csv; Convert the blanks and "unknown" to na for standardization purpose without modifying the raw data values of data set.
+-   Import data set of homicide-data.csv; Convert the blanks and "unknown" to na for standardization purpose without modifying the raw data values of data set.
 
 ```{r}
 homicide_df <- read.csv(file = "data/homicide-data.csv", na = c(" ", "Unknown"))
 homicide_df
 ```
-* Description about the raw data: 
 
-This data set included the location of the killing, whether an arrest was made and, in most cases, basic demographic information about each victim. The 50 police departments were selected based on the size of the city and their violent crime reported to the FBI in 2012.
+-   Description about the raw data:
 
-Specifically speaking, this data set contains `r nrow(homicide_df)` rows and `r ncol(homicide_df)` columns, with each row representing the information collected for each victim.
+This data set included the location of the killing, whether an arrest was made and, in most cases, basic demographic information about each victim.
+The 50 police departments were selected based on the size of the city and their violent crime reported to the FBI in 2012.
+
+Specifically speaking, this data set contains `r nrow(homicide_df)` rows and `r ncol(homicide_df)` columns, with each row representing the information collected for each victim. There are 52179 observations and 14 variables.
 Variables include `r colnames(homicide_df)`.
 The 'uid' variable is the id number of each victim.
 The 'reported_date' is the case reporting date as recorded.
@@ -101,19 +109,110 @@ The 'city','state' suggests the city and state where the crime cases happened.
 The 'lat' and 'lon' suggests the specific location with latitude and longitude where the crime cases happened.
 The 'disposition' suggests that the disposition status for each victim's case.
 
-* Create a new city_state variable (e.g. “Baltimore, MD”); I have also noticed that the age variable category is not appropriate, so I adjust it into a numerical variable here; I have also noticed that there is a mismatching data row between the city and state, "Tulsa" and "AL". As I am not sure which should be the correct recording, I decided to delete this row to clear any confusion for further calculation; I categorize the cases of losed without arrest or Open/No arrest into unsolved cases, and categorize else into solved cases.
-
-
-Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+-   Create a new city_state variable (e.g. "Baltimore, MD"); I have also noticed that the age variable category is not appropriate, so I adjust it into a numerical variable here; I have also noticed that there is a mismatching data row between the city and state, "Tulsa" and "AL". As I am not sure which should be the correct recording, I decided to delete this row to clear any confusion for further calculation; I categorize the cases of losed without arrest or Open/No arrest into unsolved cases, and categorize else into solved cases.
 
 ```{r}
-
+homicide_df = 
+  homicide_df %>% 
+  janitor::clean_names() %>%
+  mutate(
+    city_state = str_c(city, state, sep = ", ", collapse = NULL),
+    victim_age = as.numeric(victim_age),
+    case_unsolved = ifelse(disposition == "Closed without arrest" | disposition == "Open/No arrest", 1, 0)
+  ) %>%
+  relocate(city_state) %>%
+  filter(city_state != "Tulsa, AL")
+homicide_df
 ```
 
-Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+-   Then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is "Closed without arrest" or "Open/No arrest").
 
 ```{r}
+count_homicide_df =
+  homicide_df %>%
+  group_by(city_state) %>%
+  summarize(
+    n_total_homicides = n(),
+    n_unsolved_homicides = sum(case_unsolved)
+  ) 
+count_homicide_df %>%
+  knitr::kable()
+```
 
+-   For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy data frame.
+
+```{r}
+baltimore_homicide_df = 
+  count_homicide_df %>%
+  filter(city_state == "Baltimore, MD")
+baltimore_homicide_df
+
+baltimore_prop_test = 
+  prop.test(
+    x = baltimore_homicide_df %>% pull(n_unsolved_homicides),
+    n = baltimore_homicide_df %>% pull(n_total_homicides)
+  )
+
+baltimore_prop_test %>% 
+  broom::tidy() %>% 
+  knitr::kable()
+```
+
+Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each.
+
+Do this within a "tidy" pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy data frame with estimated proportions and CIs for each city.
+
+Create a prop test function for general application to all cities' calculations.
+
+```{r}
+prop_test_function = function(count_homicide_df){
+  
+  city_prop_test = 
+    prop.test(
+      x = count_homicide_df %>% pull(n_unsolved_homicides),
+      n = count_homicide_df %>% pull(n_total_homicides)
+    )
+  
+  return(city_prop_test)
+}
+
+# prop_test_function(baltimore_homicide_df)
+# check passed, the value calculated by function is aligned with the direct calculation using prop.test
+```
+
+Iterate across all cities
+
+```{r, warning=FALSE}
+all_results_df = 
+  count_homicide_df %>% 
+    nest(data = 2:3) %>% 
+    mutate(
+      test_results = map(data, prop_test_function),
+      tidy_results = map(test_results, broom::tidy)
+    ) %>% 
+    select(city_state, tidy_results) %>% 
+    unnest(tidy_results) %>% 
+    select(city_state, estimate, starts_with('conf'))
+all_results_df %>% 
+  knitr::kable()
+```
+
+Create a plot that shows the estimates and CIs for each city using geom_errorbar to add error bars based on the upper and lower limits; Also, organize cities according to the proportion of unsolved homicides in ascending orders.
+
+```{r}
+all_results_df %>%
+  mutate(city_state = fct_reorder(city_state, estimate)) %>%
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "City, State",
+    y = "Proportion of Unsolved Homicides",
+    title = "Estimated Proportion of Unsolved Homicides for Each City",
+    caption = "Data from Washington Post"
+  )
 ```
 
 
@@ -122,4 +221,3 @@ Create a plot that shows the estimates and CIs for each city – check out geom_
 ```{r}
 
 ```
-

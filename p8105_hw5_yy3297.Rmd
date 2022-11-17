@@ -48,7 +48,6 @@ full_df =
   ) %>% 
   mutate(data = map(path, read_csv)) %>% 
   unnest()
-full_df
 ```
 
 The result of the previous code chunk isn't tidy -- data are wide rather than long, and some important variables are included as parts of others.
@@ -89,7 +88,6 @@ Subjects in the control group generally don't change over time, but those in the
 
 ```{r}
 homicide_df <- read.csv(file = "data/homicide-data.csv", na = c(" ", "Unknown"))
-homicide_df
 ```
 
 -   Description about the raw data:
@@ -197,7 +195,7 @@ all_results_df %>%
   knitr::kable()
 ```
 
-Create a plot that shows the estimates and CIs for each city using geom_errorbar to add error bars based on the upper and lower limits; Also, organize cities according to the proportion of unsolved homicides in ascending orders.
+Create a plot that shows the estimates and CIs for each city and apply geom_errorbar to add error bars based on the upper and lower limits; Also, organize cities according to the proportion of unsolved homicides in ascending orders.
 
 ```{r}
 all_results_df %>%
@@ -217,6 +215,55 @@ all_results_df %>%
 
 
 #### Problem 3
+
+* Question: When designing an experiment or analysis, a common question is whether it is likely that a true effect will be detected – put differently, whether a false null hypothesis will be rejected. The probability that a false null hypothesis is rejected is referred to as power, and it depends on several factors, including: the sample size; the effect size; and the error variance. In this problem, you will conduct a simulation to explore power in a one-sample t-test.
+
+* First, set the following design elements: Fix n=30; Fix σ=5; Set μ=0; Generate 5000 data sets from the model; x∼Normal[μ,σ]; For each dataset, save μ̂  and the p-value arising from a test of H:μ=0 using α=0.05. Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
+
+```{r}
+sim = function(n = 30, mu = 0, sigma = 5) {
+  
+     x = rnorm(n, mean = mu, sd = sigma)
+     t_test = t.test(x, conf.int = 0.95)
+  
+     return(t_test)
+}
+
+output = vector("list", 5000)
+for (i in 1:5000) {
+  
+  output[[i]] = sim() %>% 
+    broom::tidy() %>%
+    select(estimate, p.value)
+     
+}
+
+output %>% bind_rows()
+```
+
+* Repeat the above for μ={1,2,3,4,5,6}, and complete the following:
+
+```{r}
+
+```
+
+
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+```{r}
+
+```
+
+Make a plot showing the average estimate of μ̂  on the y axis and the true value of μ on the x axis. 
+```{r}
+
+```
+
+Make a second plot (or overlay on the first) the average estimate of μ̂  only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. 
+```{r}
+
+```
+
+Is the sample average of μ̂  across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
 
 ```{r}
 

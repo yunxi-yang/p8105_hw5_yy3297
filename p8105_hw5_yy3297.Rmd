@@ -13,6 +13,7 @@ library(tidyverse)
 library(p8105.datasets)
 library(viridis)
 library(dplyr)
+library(patchwork)
 
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -120,7 +121,6 @@ homicide_df =
   ) %>%
   relocate(city_state) %>%
   filter(city_state != "Tulsa, AL")
-homicide_df
 ```
 
 -   Then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is "Closed without arrest" or "Open/No arrest").
@@ -221,10 +221,12 @@ all_results_df %>%
 * First, set the following design elements: Fix n=30; Fix σ=5; Set μ=0; Generate 5000 data sets from the model; x∼Normal[μ,σ]; For each dataset, save μ̂  and the p-value arising from a test of H:μ=0 using α=0.05. Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
 
 ```{r}
-sim = function(n = 30, mu = 0, sigma = 5) {
+sim = function(n, mu, sigma) {
   
      x = rnorm(n, mean = mu, sd = sigma)
-     t_test = t.test(x, conf.int = 0.95)
+     t_test = t.test(x, conf.int = 0.95) %>%
+       broom::tidy() %>%
+       select(estimate, p.value)
   
      return(t_test)
 }
@@ -232,39 +234,116 @@ sim = function(n = 30, mu = 0, sigma = 5) {
 output = vector("list", 5000)
 for (i in 1:5000) {
   
-  output[[i]] = sim() %>% 
-    broom::tidy() %>%
-    select(estimate, p.value)
+  output[[i]] = sim(n = 30, mu = 0, sigma = 5) 
      
 }
 
 output %>% bind_rows()
 ```
 
-* Repeat the above for μ={1,2,3,4,5,6}, and complete the following:
+* Repeat the above for μ={1,2,3,4,5,6}
 
 ```{r}
-
+sim_results_df = 
+  tibble(mu = c(0, 1, 2, 3, 4, 5, 6)) %>% 
+  mutate(
+    output_lists = map(.x = mu, ~rerun(5000, sim(n = 30, mu = .x, sigma = 5))),
+    estimate_df = map(output_lists, bind_rows)) %>% 
+  unnest(estimate_df) %>%
+  select(mu, estimate, p.value) 
+sim_results_df
 ```
 
+* Then, make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. 
 
-Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+First, we need to summarize the statistics for plotting by calculating the total number of t-test rejections and group them by mu.
 ```{r}
-
+t_test_results_1 = 
+  sim_results_df %>% 
+  mutate(
+    reject = ifelse(p.value < 0.05, 1, 0)
+      ) %>% 
+  group_by(mu) %>% 
+  summarize(
+    n_reject = sum(reject),
+    prop_reject = n_reject / n()
+    ) %>%
+  rbind()
+t_test_results_1
 ```
 
-Make a plot showing the average estimate of μ̂  on the y axis and the true value of μ on the x axis. 
+Then, we plot the graph of the proportion of times the null was rejected v.s. the true mean.
 ```{r}
-
+plot_1 = 
+  t_test_results_1 %>%
+  ggplot(aes(x = mu, y = prop_reject)) +
+  geom_point(aes(color = mu), alpha = 1, size = 8) +
+  geom_smooth(alpha = 0.5, size = 1) + 
+  theme(legend.position = "bottom") +
+  labs(
+    title = "Rejection Proportions v.s. True Mean",
+    x = "True Mean",
+    y = "Proportion of Times the Null was Rejected (Power of Test)"
+  )
+plot_1
 ```
 
-Make a second plot (or overlay on the first) the average estimate of μ̂  only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. 
+* Describe the association between effect size and power: holding the sample size constant, as the effect size increases, the power increases with a decreasing gradient, and the increase in power will reach a relative plateau when mu ≥ 4.
+
+* Make a plot showing the average estimate of μ̂  on the y axis and the true value of μ on the x axis. 
 ```{r}
+t_test_results_2 = 
+  sim_results_df %>% 
+  group_by(mu) %>% 
+  summarize(
+    ave_estimate = mean(estimate)
+  ) 
+t_test_results_2
 
+plot_2 =   
+  t_test_results_2 %>% 
+  ggplot(aes(x = mu, y = ave_estimate)) +
+  geom_point(aes(color = mu), alpha = 1, size = 8) +
+  geom_smooth(alpha = 0.5, size = 1) + 
+  theme(legend.position = "bottom") +
+  labs(
+    title = "Average Estimate of mu v.s. True Mean",
+    x = "True Mean",
+    y = "Average Estimate of mu"
+  )
+plot_2
 ```
 
-Is the sample average of μ̂  across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
+* Make a second plot (or overlay on the first) the average estimate of μ̂  only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. 
+```{r}
+t_test_results_3 = 
+  sim_results_df %>% 
+  filter(p.value < 0.05) %>% 
+  group_by(mu) %>% 
+  summarize(
+    ave_estimate = mean(estimate)
+  ) 
+t_test_results_3
+
+plot_3 = 
+  t_test_results_3 %>% 
+  ggplot(aes(x = mu, y = ave_estimate)) +
+  geom_point(aes(color = mu), alpha = 1, size = 8) +
+  geom_smooth(alpha = 0.5, size = 1) + 
+  theme(legend.position = "bottom") +
+  labs(
+    title = "Average Estimate of rejected mu v.s. True Mean",
+    x = "True Mean",
+    y = "Average Estimate of rejected mu"
+  )
+plot_3
+```
 
 ```{r}
-
+plot_2 + plot_3
 ```
+
+* Is the sample average of μ̂  across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
+
+The sample average of mu for which the null is rejected is approximately not equal to the true value of mean. Because if these estimate mu is roughly equal to the true mean, the null will may not be rejected.
+

@@ -9,6 +9,7 @@ output: github_document
 library(tidyverse)
 library(p8105.datasets)
 library(viridis)
+library(dplyr)
 
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -29,6 +30,8 @@ scale_fill_discrete = scale_fill_viridis_d
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
 ```
 
+#### Problem 1
+
 The code chunk below imports the data in individual spreadsheets contained in `./data/zip_data/`. To do this, I create a dataframe that includes the list of all files in that directory and the complete path to each file. As a next step, I `map` over paths and import data using the `read_csv` function. Finally, I `unnest` the result of `map`.
 
 ```{r}
@@ -39,6 +42,7 @@ full_df =
   ) %>% 
   mutate(data = map(path, read_csv)) %>% 
   unnest()
+full_df
 ```
 
 The result of the previous code chunk isn't tidy -- data are wide rather than long, and some important variables are included as parts of others. The code chunk below tides the data using string manipulations on the file, converting from wide to long, and selecting relevant variables. 
@@ -56,6 +60,7 @@ tidy_df =
     names_prefix = "week_") %>% 
   mutate(week = as.numeric(week)) %>% 
   select(group, subj = files, week, outcome)
+tidy_df
 ```
 
 Finally, the code chunk below creates a plot showing individual data, faceted by group. 
@@ -69,4 +74,52 @@ tidy_df %>%
 ```
 
 This plot suggests high within-subject correlation -- subjects who start above average end up above average, and those that start below average end up below average. Subjects in the control group generally don't change over time, but those in the experiment group increase their outcome in a roughly linear way. 
+
+
+#### Problem 2
+
+
+* Import data set of homicide-data.csv; Convert the blanks and "unknown" to na for standardization purpose without modifying the raw data values of data set.
+
+```{r}
+homicide_df <- read.csv(file = "data/homicide-data.csv", na = c(" ", "Unknown"))
+homicide_df
+```
+* Description about the raw data: 
+
+This data set included the location of the killing, whether an arrest was made and, in most cases, basic demographic information about each victim. The 50 police departments were selected based on the size of the city and their violent crime reported to the FBI in 2012.
+
+Specifically speaking, this data set contains `r nrow(homicide_df)` rows and `r ncol(homicide_df)` columns, with each row representing the information collected for each victim.
+Variables include `r colnames(homicide_df)`.
+The 'uid' variable is the id number of each victim.
+The 'reported_date' is the case reporting date as recorded.
+The 'victim_last' variable suggests the last name of victim.
+The 'victim_first' variable suggests the first name of victim.
+The 'victim_race' is a categorical variable suggesting the race of each victim.
+The 'victim_age' suggests each victim's age.
+The 'city','state' suggests the city and state where the crime cases happened.
+The 'lat' and 'lon' suggests the specific location with latitude and longitude where the crime cases happened.
+The 'disposition' suggests that the disposition status for each victim's case.
+
+* Create a new city_state variable (e.g. “Baltimore, MD”); I have also noticed that the age variable category is not appropriate, so I adjust it into a numerical variable here; I have also noticed that there is a mismatching data row between the city and state, "Tulsa" and "AL". As I am not sure which should be the correct recording, I decided to delete this row to clear any confusion for further calculation; I categorize the cases of losed without arrest or Open/No arrest into unsolved cases, and categorize else into solved cases.
+
+
+Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+
+```{r}
+
+```
+
+Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+
+```{r}
+
+```
+
+
+#### Problem 3
+
+```{r}
+
+```
 
